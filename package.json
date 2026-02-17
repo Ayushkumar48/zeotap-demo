@@ -1,0 +1,52 @@
+{
+  "name": "zeotap-demo",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.2.2",
+      "zod": "^4.1.13",
+      "typescript": "^5",
+      "@types/bun": "^1.3.4",
+      "hono": "^4.8.2",
+      "@orpc/server": "^1.12.2",
+      "@orpc/openapi": "^1.12.2",
+      "@orpc/zod": "^1.12.2",
+      "@libsql/client": "0.15.15",
+      "libsql": "0.5.22",
+      "@orpc/client": "^1.12.2",
+      "drizzle-orm": "^0.45.1"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @zeotap-demo/db db:push",
+    "db:studio": "turbo -F @zeotap-demo/db db:studio",
+    "db:generate": "turbo -F @zeotap-demo/db db:generate",
+    "db:migrate": "turbo -F @zeotap-demo/db db:migrate",
+    "db:local": "turbo -F @zeotap-demo/db db:local",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@zeotap-demo/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "@types/bun": "catalog:",
+    "@zeotap-demo/config": "workspace:*",
+    "turbo": "^2.6.3",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.3.6"
+}
