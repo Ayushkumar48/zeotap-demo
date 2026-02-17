@@ -5,8 +5,8 @@ import Link from "next/link";
 import {
   useQuery,
   useMutation,
-  keepPreviousData,
   useQueryClient,
+  keepPreviousData,
 } from "@tanstack/react-query";
 import { orpc } from "@/utils/orpc";
 import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
@@ -42,19 +42,19 @@ import { useDebounce } from "use-debounce";
 
 export default function Home() {
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<(typeof statusEnum)[number] | undefined>(
-    undefined,
+  const [status, setStatus] = useState<"" | (typeof statusEnum)[number]>("");
+  const [severity, setSeverity] = useState<"" | (typeof severityEnum)[number]>(
+    "",
   );
-  const [severity, setSeverity] = useState<
-    (typeof severityEnum)[number] | undefined
-  >(undefined);
   const [service, setService] = useState<string>("");
   const [owner, setOwner] = useState<string>("");
   const [search, setSearch] = useState<string>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
+
   const [debouncedSearch] = useDebounce(search, 400);
   const [debouncedService] = useDebounce(service, 400);
   const [debouncedOwner] = useDebounce(owner, 400);
@@ -62,8 +62,8 @@ export default function Home() {
   const queryInput = {
     page,
     pageSize,
-    ...(status && { status }),
-    ...(severity && { severity }),
+    ...(status !== "" && { status }),
+    ...(severity !== "" && { severity }),
     ...(debouncedService.trim() && { service: debouncedService.trim() }),
     ...(debouncedOwner.trim() && { owner: debouncedOwner.trim() }),
     ...(debouncedSearch.trim() && { search: debouncedSearch.trim() }),
@@ -93,6 +93,7 @@ export default function Home() {
       },
     }),
   );
+
   const severityOptions = severityEnum.map((s: string, i: number) => ({
     value: s,
     label: `${s} - ${["Critical", "High", "Medium", "Low"][i]}`,
@@ -107,8 +108,8 @@ export default function Home() {
   };
 
   const onResetFilters = () => {
-    setStatus(undefined);
-    setSeverity(undefined);
+    setStatus("");
+    setSeverity("");
     setService("");
     setOwner("");
     setSearch("");
@@ -145,10 +146,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select
-                value={status}
-                onValueChange={(v) => setStatus(v || undefined)}
-              >
+              <Select value={status} onValueChange={(v) => setStatus(v ?? "")}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Any status" />
                 </SelectTrigger>
@@ -167,7 +165,7 @@ export default function Home() {
               <Label>Severity</Label>
               <Select
                 value={severity}
-                onValueChange={(v) => setSeverity(v || undefined)}
+                onValueChange={(v) => setSeverity(v ?? "")}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Any severity" />
