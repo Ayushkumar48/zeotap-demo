@@ -1,4 +1,4 @@
-import { severityEnum, statusEnum } from "@zeotap-demo/db";
+import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
 
 export const severityOptions = severityEnum.map((s: string, i: number) => ({
   value: s,

@@ -43,6 +43,7 @@ export default function Page() {
     status: "OPEN" as (typeof statusEnum)[number],
     owner: "",
     summary: "",
+    createdAt: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -55,8 +56,10 @@ export default function Page() {
         status: incident.data.status,
         owner: incident.data.owner ?? "",
         summary: incident.data.summary ?? "",
+        createdAt: incident.data.createdAt
+          ? new Date(incident.data.createdAt).toISOString().split("T")[0]
+          : "",
       });
-      console.log(incident.data);
     }
   }, [incident.data]);
 
@@ -154,6 +157,15 @@ export default function Page() {
               onChange={(value) => handleChange("owner", value)}
               required={false}
               error={errors.owner}
+            />
+
+            <FormInputField
+              label="Created At"
+              name="createdAt"
+              type="date"
+              value={formData.createdAt}
+              onChange={(value) => handleChange("createdAt", value)}
+              error={errors.createdAt}
             />
 
             <FormTextareaField

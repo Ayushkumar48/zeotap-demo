@@ -9,6 +9,7 @@ export const postIncidentSchema = z.object({
   status: z.enum(statusEnum, { error: "Status is required" }),
   owner: z.string().nullable(),
   summary: z.string().nullable(),
+  createdAt: z.coerce.date().optional(),
 });
 
 export const getIncidentsSchema = z.object({
@@ -17,7 +18,19 @@ export const getIncidentsSchema = z.object({
   service: z.string().optional(),
   owner: z.string().optional(),
   search: z.string().optional(),
-  sort: z.string().optional(),
+  sort: z
+    .enum([
+      "id",
+      "title",
+      "service",
+      "severity",
+      "status",
+      "owner",
+      "summary",
+      "createdAt",
+      "updatedAt",
+    ])
+    .optional(),
   order: z.enum(["asc", "desc"]).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),

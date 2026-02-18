@@ -2,7 +2,7 @@ import { db } from "@zeotap-demo/db";
 import { publicProcedure } from "../index";
 import { incidents } from "@zeotap-demo/db/schema";
 import { randomUUIDv7 } from "bun";
-import { and, eq, like, gte, lte, asc, desc, count } from "drizzle-orm";
+import { and, eq, like, gte, lte, asc, desc, count, SQL } from "drizzle-orm";
 import {
   getIncidentsSchema,
   postIncidentSchema,
@@ -26,7 +26,7 @@ export const incidentRouter = {
         pageSize,
       } = input;
 
-      const filters = [];
+      const filters: SQL[] = [];
 
       if (status) filters.push(eq(incidents.status, status));
       if (severity) filters.push(eq(incidents.severity, severity));
@@ -38,7 +38,7 @@ export const incidentRouter = {
 
       const sortOrder = order === "asc" ? asc : desc;
       const orderBy = sort
-        ? sortOrder(incidents[sort as keyof typeof incidents])
+        ? sortOrder(incidents[sort])
         : desc(incidents.createdAt);
 
       const [data, total] = await Promise.all([

@@ -90,7 +90,16 @@ type FilterState = {
   search: string;
   fromDate: string;
   toDate: string;
-  sort?: string;
+  sort?:
+  | "id"
+  | "title"
+  | "service"
+  | "severity"
+  | "status"
+  | "owner"
+  | "summary"
+  | "createdAt"
+  | "updatedAt";
   order?: "asc" | "desc";
 };
 
@@ -309,7 +318,7 @@ const IncidentTable = ({
   appliedFilters,
   setAppliedFilters,
 }: IncidentTableProps) => {
-  const handleSort = (field: string) => {
+  const handleSort = (field: NonNullable<FilterState["sort"]>) => {
     setAppliedFilters((prev) => ({
       ...prev,
       sort: field,
@@ -317,7 +326,7 @@ const IncidentTable = ({
     }));
   };
 
-  const SortIcon = ({ field }: { field: string }) => {
+  const SortIcon = ({ field }: { field: NonNullable<FilterState["sort"]> }) => {
     if (appliedFilters.sort !== field)
       return <ArrowUpDown className="ml-2 h-4 w-4" />;
     if (appliedFilters.order === "asc")
@@ -342,6 +351,14 @@ const IncidentTable = ({
                 >
                   <div className="flex items-center">
                     Created At <SortIcon field="createdAt" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("updatedAt")}
+                >
+                  <div className="flex items-center">
+                    Updated At <SortIcon field="updatedAt" />
                   </div>
                 </TableHead>
                 <TableHead
@@ -390,16 +407,17 @@ const IncidentTable = ({
             <TableBody>
               {incidentsQuery.isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7}>Loading...</TableCell>
+                  <TableCell colSpan={8}>Loading...</TableCell>
                 </TableRow>
               ) : incidentsQuery.data?.data.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7}>No incidents found</TableCell>
+                  <TableCell colSpan={8}>No incidents found</TableCell>
                 </TableRow>
               ) : (
                 incidentsQuery.data?.data.map((inc) => (
                   <TableRow key={inc.id}>
                     <TableCell>{formatDate(inc.createdAt)}</TableCell>
+                    <TableCell>{formatDate(inc.updatedAt)}</TableCell>
                     <TableCell className="max-w-xs truncate">
                       {inc.title}
                     </TableCell>
