@@ -24,12 +24,15 @@ A simple, type-safe incident management dashboard built with Next.js, Hono, and 
 
 ## API Overview
 
-The backend uses **Hono** + **oRPC** for end-to-end type safety.
-- `GET /incidents`: Returns a paginated list of incidents with filtering (status, severity, search).
-- `GET /incident/:id`: Fetch a single incident.
-- `POST /incident`: Create a new incident (validated via Zod).
-- `PUT /incident/:id`: Update an existing incident.
-- `DELETE /incident/:id`: Delete an incident.
+The backend is an **oRPC** server. All procedures are prefixed with `/rpc`.
+- `POST /rpc/incident/getAllWithPaginationAndFilter`: List incidents with filtering.
+- `POST /rpc/incident/getIncident`: Fetch a single incident.
+- `POST /rpc/incident/createIncident`: Create an incident.
+- `POST /rpc/incident/updateIncident`: Update an incident.
+- `POST /rpc/incident/deleteIncident`: Delete an incident.
+
+You can also view the interactive **Swagger/OpenAPI** docs at:
+`http://localhost:3000/api-reference`
 
 ## Design Decisions & Tradeoffs
 
