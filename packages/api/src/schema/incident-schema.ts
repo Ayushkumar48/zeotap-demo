@@ -17,6 +17,8 @@ export const getIncidentsSchema = z.object({
   service: z.string().optional(),
   owner: z.string().optional(),
   search: z.string().optional(),
+  sort: z.string().optional(),
+  order: z.enum(["asc", "desc"]).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   page: z.number().default(1),

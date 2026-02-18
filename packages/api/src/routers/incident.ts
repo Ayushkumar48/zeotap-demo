@@ -2,7 +2,7 @@ import { db } from "@zeotap-demo/db";
 import { publicProcedure } from "../index";
 import { incidents } from "@zeotap-demo/db/schema";
 import { randomUUIDv7 } from "bun";
-import { and, eq, like, gte, lte, desc } from "drizzle-orm";
+import { and, eq, like, gte, lte, asc, desc, count } from "drizzle-orm";
 import {
   getIncidentsSchema,
   postIncidentSchema,
@@ -18,6 +18,8 @@ export const incidentRouter = {
         service,
         owner,
         search,
+        sort,
+        order,
         from,
         to,
         page,
@@ -34,13 +36,27 @@ export const incidentRouter = {
       if (from) filters.push(gte(incidents.createdAt, from));
       if (to) filters.push(lte(incidents.createdAt, to));
 
-      return db
-        .select()
-        .from(incidents)
-        .where(filters.length ? and(...filters) : undefined)
-        .orderBy(desc(incidents.createdAt))
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
+      const sortOrder = order === "asc" ? asc : desc;
+      const orderBy = sort
+        ? sortOrder(incidents[sort as keyof typeof incidents])
+        : desc(incidents.createdAt);
+
+      const [data, total] = await Promise.all([
+        db
+          .select()
+          .from(incidents)
+          .where(filters.length ? and(...filters) : undefined)
+          .orderBy(orderBy)
+          .limit(pageSize)
+          .offset((page - 1) * pageSize),
+        db
+          .select({ count: count() })
+          .from(incidents)
+          .where(filters.length ? and(...filters) : undefined)
+          .then((res) => res[0]?.count ?? 0),
+      ]);
+
+      return { data, total };
     }),
   createIncident: publicProcedure
     .input(postIncidentSchema)

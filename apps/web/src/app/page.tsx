@@ -50,11 +50,21 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
-import { PencilLine, Plus, Trash2 } from "lucide-react";
+import {
+  PencilLine,
+  Plus,
+  Trash2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
 
 type Incident = InferClientOutputs<
   typeof client
->["incident"]["getAllWithPaginationAndFilter"][number];
+>["incident"]["getAllWithPaginationAndFilter"]["data"][number];
+type PaginatedResponse = InferClientOutputs<
+  typeof client
+>["incident"]["getAllWithPaginationAndFilter"];
 type DeleteIncidentOutput = InferClientOutputs<
   typeof client
 >["incident"]["deleteIncident"];
@@ -80,6 +90,8 @@ type FilterState = {
   search: string;
   fromDate: string;
   toDate: string;
+  sort?: string;
+  order?: "asc" | "desc";
 };
 
 const initialFilterState: FilterState = {
@@ -90,6 +102,8 @@ const initialFilterState: FilterState = {
   search: "",
   fromDate: "",
   toDate: "",
+  sort: "createdAt",
+  order: "desc",
 };
 
 interface FilterSectionProps {
@@ -268,18 +282,21 @@ const FilterSection = ({
 };
 
 interface IncidentTableProps {
-  incidentsQuery: UseQueryResult<Incident[], Error>;
+  incidentsQuery: UseQueryResult<PaginatedResponse, Error>;
   deleteMutation: UseMutationResult<
     DeleteIncidentOutput,
     Error,
     { id: string },
-    { previous: Incident[] | undefined }
+    { previous: PaginatedResponse | undefined }
   >;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
   pageSize: number;
   canNext: boolean;
+  totalPages: number;
   queryInput: GetAllInput;
+  appliedFilters: FilterState;
+  setAppliedFilters: React.Dispatch<React.SetStateAction<FilterState>>;
 }
 
 const IncidentTable = ({
@@ -288,7 +305,26 @@ const IncidentTable = ({
   page,
   setPage,
   canNext,
+  totalPages,
+  appliedFilters,
+  setAppliedFilters,
 }: IncidentTableProps) => {
+  const handleSort = (field: string) => {
+    setAppliedFilters((prev) => ({
+      ...prev,
+      sort: field,
+      order: prev.sort === field && prev.order === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (appliedFilters.sort !== field)
+      return <ArrowUpDown className="ml-2 h-4 w-4" />;
+    if (appliedFilters.order === "asc")
+      return <ArrowUp className="ml-2 h-4 w-4" />;
+    return <ArrowDown className="ml-2 h-4 w-4" />;
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -300,12 +336,54 @@ const IncidentTable = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Created At</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Service</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Owner</TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("createdAt")}
+                >
+                  <div className="flex items-center">
+                    Created At <SortIcon field="createdAt" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("title")}
+                >
+                  <div className="flex items-center">
+                    Title <SortIcon field="title" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("service")}
+                >
+                  <div className="flex items-center">
+                    Service <SortIcon field="service" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("severity")}
+                >
+                  <div className="flex items-center">
+                    Severity <SortIcon field="severity" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center">
+                    Status <SortIcon field="status" />
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer"
+                  onClick={() => handleSort("owner")}
+                >
+                  <div className="flex items-center">
+                    Owner <SortIcon field="owner" />
+                  </div>
+                </TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -314,12 +392,12 @@ const IncidentTable = ({
                 <TableRow>
                   <TableCell colSpan={7}>Loading...</TableCell>
                 </TableRow>
-              ) : incidentsQuery.data?.length === 0 ? (
+              ) : incidentsQuery.data?.data.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7}>No incidents found</TableCell>
                 </TableRow>
               ) : (
-                incidentsQuery.data?.map((inc) => (
+                incidentsQuery.data?.data.map((inc) => (
                   <TableRow key={inc.id}>
                     <TableCell>{formatDate(inc.createdAt)}</TableCell>
                     <TableCell className="max-w-xs truncate">
@@ -388,19 +466,21 @@ const IncidentTable = ({
         </div>
 
         <div className="flex items-center justify-between mt-4">
-          <div>
+          <div className="flex items-center gap-2">
             <Button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
             >
               Previous
             </Button>
+            <span className="text-sm">
+              Page {page} of {totalPages || "..."}
+            </span>
             <Button
               onClick={() => {
                 if (canNext) setPage((p) => p + 1);
               }}
               disabled={!canNext}
-              className="ml-2"
             >
               Next
             </Button>
@@ -444,6 +524,8 @@ export default function Home() {
         from: new Date(appliedFilters.fromDate),
       }),
       ...(appliedFilters.toDate && { to: new Date(appliedFilters.toDate) }),
+      sort: appliedFilters.sort,
+      order: appliedFilters.order,
     }),
     [page, pageSize, appliedFilters],
   );
@@ -472,7 +554,13 @@ export default function Home() {
         orpc.incident.getAllWithPaginationAndFilter.queryKey({
           input: queryInput,
         }),
-        (old) => old?.filter((i) => i.id !== id),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            data: old.data.filter((i) => i.id !== id),
+          };
+        },
       );
 
       return { previous };
@@ -503,8 +591,11 @@ export default function Home() {
     setPage(1);
   };
 
-  const canNext =
-    !!incidentsQuery.data && incidentsQuery.data.length >= pageSize;
+  const totalPages = incidentsQuery.data
+    ? Math.ceil(incidentsQuery.data.total / pageSize)
+    : 0;
+
+  const canNext = page < totalPages;
 
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
@@ -534,7 +625,10 @@ export default function Home() {
         setPage={setPage}
         pageSize={pageSize}
         canNext={canNext}
+        totalPages={totalPages}
         queryInput={queryInput}
+        setAppliedFilters={setAppliedFilters}
+        appliedFilters={appliedFilters}
       />
     </div>
   );
