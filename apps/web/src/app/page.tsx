@@ -1,527 +1,62 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import {
   useQuery,
   useMutation,
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
-import type { UseQueryResult, UseMutationResult } from "@tanstack/react-query";
-import type { InferClientInputs, InferClientOutputs } from "@orpc/client";
-import { client, orpc } from "@/utils/orpc";
-import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
-import { toast } from "sonner";
-import { cn, formatDate } from "@/lib/utils";
-import {
-  PencilLine,
-  Plus,
-  Trash2,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
-
-type Incident = InferClientOutputs<
-  typeof client
->["incident"]["getAllWithPaginationAndFilter"]["data"][number];
-type PaginatedResponse = InferClientOutputs<
-  typeof client
->["incident"]["getAllWithPaginationAndFilter"];
-type DeleteIncidentOutput = InferClientOutputs<
-  typeof client
->["incident"]["deleteIncident"];
-type GetAllInput = InferClientInputs<
-  typeof client
->["incident"]["getAllWithPaginationAndFilter"];
-
-const severityOptions = severityEnum.map((s: string, i: number) => ({
-  value: s,
-  label: `${s} - ${["Critical", "High", "Medium", "Low"][i]}`,
-}));
-
-const statusOptions = statusEnum.map((s: string) => ({
-  value: s,
-  label: s.charAt(0) + s.slice(1).toLowerCase(),
-}));
-
-type FilterState = {
-  status: "" | (typeof statusEnum)[number];
-  severity: "" | (typeof severityEnum)[number];
-  service: string;
-  owner: string;
-  search: string;
-  fromDate: string;
-  toDate: string;
-  sort?:
-  | "id"
-  | "title"
-  | "service"
-  | "severity"
-  | "status"
-  | "owner"
-  | "summary"
-  | "createdAt"
-  | "updatedAt";
-  order?: "asc" | "desc";
-};
-
-const initialFilterState: FilterState = {
-  status: "",
-  severity: "",
-  service: "",
-  owner: "",
-  search: "",
-  fromDate: "",
-  toDate: "",
-  sort: "createdAt",
-  order: "desc",
-};
-
-interface FilterSectionProps {
-  filterInputs: FilterState;
-  setFilterInputs: React.Dispatch<React.SetStateAction<FilterState>>;
-  onApplyFilters: () => void;
-  onResetFilters: () => void;
-  pageSize: number;
-  setPageSize: React.Dispatch<React.SetStateAction<number>>;
-  setPage: React.Dispatch<React.SetStateAction<number>>;
-}
-
-const FilterSection = ({
-  filterInputs,
-  setFilterInputs,
-  onApplyFilters,
-  onResetFilters,
-  pageSize,
-  setPageSize,
-  setPage,
-}: FilterSectionProps) => {
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>Filters</CardTitle>
-        <CardDescription>Filter incidents to narrow results</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={filterInputs.status}
-              onValueChange={(v) =>
-                setFilterInputs((prev) => ({
-                  ...prev,
-                  status: (v ?? "") as "" | (typeof statusEnum)[number],
-                }))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Any status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Any</SelectItem>
-                {statusOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Severity</Label>
-            <Select
-              value={filterInputs.severity}
-              onValueChange={(v) =>
-                setFilterInputs((prev) => ({
-                  ...prev,
-                  severity: (v ?? "") as "" | (typeof severityEnum)[number],
-                }))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Any severity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Any</SelectItem>
-                {severityOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Service</Label>
-            <Input
-              placeholder="Service name (exact)"
-              value={filterInputs.service}
-              onChange={(e) =>
-                setFilterInputs((prev) => ({
-                  ...prev,
-                  service: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Owner</Label>
-            <Input
-              placeholder="Owner (exact)"
-              value={filterInputs.owner}
-              onChange={(e) =>
-                setFilterInputs((prev) => ({ ...prev, owner: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Search Title</Label>
-            <Input
-              placeholder="Search in title"
-              value={filterInputs.search}
-              onChange={(e) =>
-                setFilterInputs((prev) => ({ ...prev, search: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <div className="w-full space-y-2">
-              <Label>From</Label>
-              <Input
-                type="date"
-                value={filterInputs.fromDate}
-                onChange={(e) =>
-                  setFilterInputs((prev) => ({
-                    ...prev,
-                    fromDate: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div className="w-full space-y-2">
-              <Label>To</Label>
-              <Input
-                type="date"
-                value={filterInputs.toDate}
-                onChange={(e) =>
-                  setFilterInputs((prev) => ({
-                    ...prev,
-                    toDate: e.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2 mt-4">
-          <Button onClick={onApplyFilters}>Apply Filters</Button>
-          <Button variant="ghost" onClick={onResetFilters}>
-            Reset
-          </Button>
-
-          <div className="ml-auto flex items-center gap-2">
-            <Label className="text-sm">Page size</Label>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v) => {
-                setPageSize(Number(v));
-                setPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="10" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="20">20</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-interface IncidentTableProps {
-  incidentsQuery: UseQueryResult<PaginatedResponse, Error>;
-  deleteMutation: UseMutationResult<
-    DeleteIncidentOutput,
-    Error,
-    { id: string },
-    { previous: PaginatedResponse | undefined }
-  >;
-  page: number;
-  setPage: React.Dispatch<React.SetStateAction<number>>;
-  pageSize: number;
-  canNext: boolean;
-  totalPages: number;
-  queryInput: GetAllInput;
-  appliedFilters: FilterState;
-  setAppliedFilters: React.Dispatch<React.SetStateAction<FilterState>>;
-}
-
-const IncidentTable = ({
-  incidentsQuery,
-  deleteMutation,
-  page,
-  setPage,
-  canNext,
-  totalPages,
-  appliedFilters,
-  setAppliedFilters,
-}: IncidentTableProps) => {
-  const handleSort = (field: NonNullable<FilterState["sort"]>) => {
-    setAppliedFilters((prev) => ({
-      ...prev,
-      sort: field,
-      order: prev.sort === field && prev.order === "asc" ? "desc" : "asc",
-    }));
-  };
-
-  const SortIcon = ({ field }: { field: NonNullable<FilterState["sort"]> }) => {
-    if (appliedFilters.sort !== field)
-      return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    if (appliedFilters.order === "asc")
-      return <ArrowUp className="ml-2 h-4 w-4" />;
-    return <ArrowDown className="ml-2 h-4 w-4" />;
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Results</CardTitle>
-        <CardDescription>Showing incidents (page {page})</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("createdAt")}
-                >
-                  <div className="flex items-center">
-                    Created At <SortIcon field="createdAt" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("updatedAt")}
-                >
-                  <div className="flex items-center">
-                    Updated At <SortIcon field="updatedAt" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("title")}
-                >
-                  <div className="flex items-center">
-                    Title <SortIcon field="title" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("service")}
-                >
-                  <div className="flex items-center">
-                    Service <SortIcon field="service" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("severity")}
-                >
-                  <div className="flex items-center">
-                    Severity <SortIcon field="severity" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("status")}
-                >
-                  <div className="flex items-center">
-                    Status <SortIcon field="status" />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="cursor-pointer"
-                  onClick={() => handleSort("owner")}
-                >
-                  <div className="flex items-center">
-                    Owner <SortIcon field="owner" />
-                  </div>
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incidentsQuery.isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8}>Loading...</TableCell>
-                </TableRow>
-              ) : incidentsQuery.data?.data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8}>No incidents found</TableCell>
-                </TableRow>
-              ) : (
-                incidentsQuery.data?.data.map((inc) => (
-                  <TableRow key={inc.id}>
-                    <TableCell>{formatDate(inc.createdAt)}</TableCell>
-                    <TableCell>{formatDate(inc.updatedAt)}</TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {inc.title}
-                    </TableCell>
-                    <TableCell>{inc.service}</TableCell>
-                    <TableCell>{inc.severity}</TableCell>
-                    <TableCell>{inc.status}</TableCell>
-                    <TableCell>{inc.owner ?? "-"}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Link href={`/report-incident/${inc.id}/edit`}>
-                          <Button size="sm">
-                            <PencilLine />
-                            Edit
-                          </Button>
-                        </Link>
-                        <AlertDialog>
-                          <AlertDialogTrigger
-                            disabled={deleteMutation.isPending}
-                            className={cn(
-                              buttonVariants({
-                                variant: "destructive",
-                                size: "sm",
-                              }),
-                            )}
-                          >
-                            <Trash2 />
-                            Delete
-                          </AlertDialogTrigger>
-
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Delete this incident?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will
-                                permanently delete the incident titled "
-                                {inc.title}".
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  deleteMutation.mutate({ id: inc.id })
-                                }
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {deleteMutation.isPending
-                                  ? "Deleting..."
-                                  : "Delete"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </Button>
-            <span className="text-sm">
-              Page {page} of {totalPages || "..."}
-            </span>
-            <Button
-              onClick={() => {
-                if (canNext) setPage((p) => p + 1);
-              }}
-              disabled={!canNext}
-            >
-              Next
-            </Button>
-          </div>
-
-          <div className="text-sm text-muted-foreground">
-            {incidentsQuery.isFetching ? "Refreshing..." : null}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+import { orpc } from "@/utils/orpc";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import { FilterSection } from "@/components/incidents/filter-section";
+import { IncidentTable } from "@/components/incidents/incident-table";
+import { initialFilterState, type FilterState, type GetAllInput } from "@/components/incidents/types";
 
 export default function Home() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  const [filterInputs, setFilterInputs] =
-    useState<FilterState>(initialFilterState);
-  const [appliedFilters, setAppliedFilters] =
-    useState<FilterState>(initialFilterState);
-  const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const page = Number(searchParams.get("page")) || 1;
+  const pageSize = Number(searchParams.get("pageSize")) || 10;
+
+  const appliedFilters = useMemo<FilterState>(
+    () => ({
+      status: (searchParams.get("status") as FilterState["status"]) || "",
+      severity: (searchParams.get("severity") as FilterState["severity"]) || "",
+      service: searchParams.get("service") || "",
+      owner: searchParams.get("owner") || "",
+      search: searchParams.get("search") || "",
+      fromDate: searchParams.get("from") || "",
+      toDate: searchParams.get("to") || "",
+      sort: (searchParams.get("sort") as FilterState["sort"]) || "createdAt",
+      order: (searchParams.get("order") as FilterState["order"]) || "desc",
+    }),
+    [searchParams],
+  );
+
+  const [filterInputs, setFilterInputs] = useState<FilterState>(appliedFilters);
+
+  const updateParams = useCallback(
+    (updates: Record<string, string | number | null | undefined>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || value === undefined || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, String(value));
+        }
+      });
+      router.push(`${pathname}?${params.toString()}` as Route);
+    },
+    [searchParams, router, pathname],
+  );
 
   const queryInput = useMemo<GetAllInput>(
     () => ({
@@ -529,14 +64,14 @@ export default function Home() {
       pageSize,
       ...(appliedFilters.status && { status: appliedFilters.status }),
       ...(appliedFilters.severity && { severity: appliedFilters.severity }),
-      ...(appliedFilters.service.trim() && {
-        service: appliedFilters.service.trim(),
+      ...(appliedFilters.service && {
+        service: appliedFilters.service,
       }),
-      ...(appliedFilters.owner.trim() && {
-        owner: appliedFilters.owner.trim(),
+      ...(appliedFilters.owner && {
+        owner: appliedFilters.owner,
       }),
-      ...(appliedFilters.search.trim() && {
-        search: appliedFilters.search.trim(),
+      ...(appliedFilters.search && {
+        search: appliedFilters.search,
       }),
       ...(appliedFilters.fromDate && {
         from: new Date(appliedFilters.fromDate),
@@ -594,19 +129,38 @@ export default function Home() {
       }
     },
     onSuccess: () => {
-      toast.success("Deleted incident");
+      queryClient.invalidateQueries({
+        queryKey: orpc.incident.getAllWithPaginationAndFilter.key(),
+      });
     },
   });
 
   const onApplyFilters = () => {
-    setAppliedFilters(filterInputs);
-    setPage(1);
+    updateParams({
+      page: 1,
+      status: filterInputs.status,
+      severity: filterInputs.severity,
+      service: filterInputs.service.trim(),
+      owner: filterInputs.owner.trim(),
+      search: filterInputs.search.trim(),
+      from: filterInputs.fromDate,
+      to: filterInputs.toDate,
+    });
   };
 
   const onResetFilters = () => {
     setFilterInputs(initialFilterState);
-    setAppliedFilters(initialFilterState);
-    setPage(1);
+    router.push(pathname as Route);
+  };
+
+  const handleSort = (field: NonNullable<FilterState["sort"]>) => {
+    updateParams({
+      sort: field,
+      order:
+        appliedFilters.sort === field && appliedFilters.order === "asc"
+          ? "desc"
+          : "asc",
+    });
   };
 
   const totalPages = incidentsQuery.data
@@ -616,12 +170,17 @@ export default function Home() {
   const canNext = page < totalPages;
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Incidents</h1>
-        <Link href="/report-incident">
-          <Button>
-            <Plus /> Report Incident
+    <div className="container mx-auto max-w-6xl px-4 py-6 md:py-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Incidents</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Monitor and manage system outages and service disruptions.
+          </p>
+        </div>
+        <Link href="/report-incident" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Report Incident
           </Button>
         </Link>
       </div>
@@ -632,20 +191,21 @@ export default function Home() {
         onApplyFilters={onApplyFilters}
         onResetFilters={onResetFilters}
         pageSize={pageSize}
-        setPageSize={setPageSize}
-        setPage={setPage}
+        setPageSize={(size) => updateParams({ pageSize: size, page: 1 })}
+        setPage={(p) => updateParams({ page: p })}
       />
 
       <IncidentTable
         incidentsQuery={incidentsQuery}
         deleteMutation={deleteMutation}
         page={page}
-        setPage={setPage}
+        setPage={(p) => updateParams({ page: p })}
         pageSize={pageSize}
+        setPageSize={(size) => updateParams({ pageSize: size, page: 1 })}
         canNext={canNext}
         totalPages={totalPages}
         queryInput={queryInput}
-        setAppliedFilters={setAppliedFilters}
+        handleSort={handleSort}
         appliedFilters={appliedFilters}
       />
     </div>

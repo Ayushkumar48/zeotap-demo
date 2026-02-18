@@ -5,7 +5,6 @@ export type CreateContextOptions = {
 };
 
 export async function createContext({}: CreateContextOptions) {
-  // No auth configured
   return {
     session: null,
   };
