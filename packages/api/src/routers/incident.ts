@@ -56,7 +56,11 @@ export const incidentRouter = {
       return await db.delete(incidents).where(eq(incidents.id, input.id));
     }),
   updateIncident: publicProcedure
-    .input(z.object({ id: z.string(), ...postIncidentSchema.shape }))
+    .input(
+      postIncidentSchema.extend({
+        id: z.string(),
+      }),
+    )
     .handler(async ({ input }) => {
       return await db
         .update(incidents)

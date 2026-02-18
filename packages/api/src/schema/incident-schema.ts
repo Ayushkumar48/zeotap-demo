@@ -1,9 +1,10 @@
-import { severityEnum, statusEnum } from "@zeotap-demo/db";
+import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
 import z from "zod";
 
 export const postIncidentSchema = z.object({
-  title: z.string({ error: "Title is required" }),
-  service: z.string({ error: "Service is required" }),
+  id: z.string().optional(),
+  title: z.string().min(1, "Title is required"),
+  service: z.string().min(1, "Service is required"),
   severity: z.enum(severityEnum, { error: "Severity is required" }),
   status: z.enum(statusEnum, { error: "Status is required" }),
   owner: z.string().nullable(),

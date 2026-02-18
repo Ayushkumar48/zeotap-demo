@@ -8,106 +8,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { orpc } from "@/utils/orpc";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useParams } from "next/navigation";
+import { postIncidentSchema } from "@zeotap-demo/api/schema/incident-schema";
+import type z from "zod";
+import {
+  FormInputField,
+  FormSelectField,
+  FormTextareaField,
+} from "@/components/form-fields";
+import { severityOptions, statusOptions } from "@/utils/extra";
 
-type TextareaFieldProps = {
-  id: string;
-  label: string;
-  placeholder?: string;
-  rows?: number;
-  value: string;
-  onChange: (value: string) => void;
-};
-
-function FormTextareaField({
-  id,
-  label,
-  placeholder,
-  rows = 4,
-  value,
-  onChange,
-}: TextareaFieldProps) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Textarea
-        id={id}
-        placeholder={placeholder}
-        rows={rows}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
-type SelectOption = {
-  value: string;
-  label: string;
-};
-
-type SelectFieldProps = {
-  label: string;
-  placeholder?: string;
-  value?: string;
-  options: SelectOption[];
-  onChange: (value: string) => void;
-};
-function FormSelectField({
-  label,
-  placeholder,
-  value,
-  options,
-  onChange,
-}: SelectFieldProps) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Select value={value} onValueChange={(value) => value && onChange(value)}>
-        <SelectTrigger className="w-full">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
-export default function Page({ params }: { params: { id: string } }) {
+type FormErrors = Partial<
+  Record<keyof z.infer<typeof postIncidentSchema>, string>
+>;
+export default function Page() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
+
   const incident = useQuery(
-    orpc.incident.getIncident.queryOptions({
-      input: { id: params.id },
-    }),
+    orpc.incident.getIncident.queryOptions({ input: { id }, enabled: !!id }),
   );
-  const severityOptions = severityEnum.map((s: string, i: number) => ({
-    value: s,
-    label: `${s} - ${["Critical", "High", "Medium", "Low"][i]}`,
-  }));
-  const statusOptions = statusEnum.map((s: string) => ({
-    value: s,
-    label: s.charAt(0) + s.slice(1).toLowerCase(),
-  }));
 
   const [formData, setFormData] = useState({
     title: "",
@@ -117,6 +44,7 @@ export default function Page({ params }: { params: { id: string } }) {
     owner: "",
     summary: "",
   });
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     if (incident.data) {
@@ -128,29 +56,42 @@ export default function Page({ params }: { params: { id: string } }) {
         owner: incident.data.owner ?? "",
         summary: incident.data.summary ?? "",
       });
+      console.log(incident.data);
     }
   }, [incident.data]);
 
-  const updateMutation = useMutation(
-    orpc.incident.updateIncident.mutationOptions({
-      onSuccess: () => {
-        router.push("/");
-      },
-    }),
-  );
+  const updateMutation = useMutation({
+    ...orpc.incident.updateIncident.mutationOptions(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: orpc.incident.getAllWithPaginationAndFilter.key(),
+      });
+      router.push("/");
+      toast.success("Incident updated successfully");
+    },
+  });
 
   const handleChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
-  const handleSubmit = (
-    e: React.SyntheticEvent<HTMLFormElement> | SubmitEvent,
-  ) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
-    updateMutation.mutate({
-      id: params.id,
-      ...formData,
-    });
+    const result = postIncidentSchema.safeParse(formData);
+
+    if (!result.success) {
+      const fieldErrors: FormErrors = {};
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as keyof FormErrors;
+        if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+      }
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setErrors({});
+    updateMutation.mutate({ id, ...formData });
   };
 
   return (
@@ -168,27 +109,22 @@ export default function Page({ params }: { params: { id: string } }) {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="title">Incident Title</Label>
-              <Input
-                id="title"
-                placeholder="Database outage in production"
-                value={formData.title}
-                onChange={(e) => handleChange("title", e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="service">Affected Service</Label>
-              <Input
-                id="service"
-                placeholder="Auth Service / Payment API / Frontend"
-                value={formData.service}
-                onChange={(e) => handleChange("service", e.target.value)}
-                required
-              />
-            </div>
+            <FormInputField
+              label="Incident Title"
+              name="title"
+              value={formData.title}
+              placeholder="Database outage in production"
+              onChange={(value) => handleChange("title", value)}
+              error={errors.title}
+            />
+            <FormInputField
+              label="Affected Service"
+              name="service"
+              value={formData.service}
+              placeholder="Auth Service / Payment API / Frontend"
+              onChange={(value) => handleChange("service", value)}
+              error={errors.service}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormSelectField
@@ -197,6 +133,7 @@ export default function Page({ params }: { params: { id: string } }) {
                 value={formData.severity}
                 onChange={(value) => handleChange("severity", value)}
                 options={severityOptions}
+                error={errors.severity}
               />
 
               <FormSelectField
@@ -205,18 +142,19 @@ export default function Page({ params }: { params: { id: string } }) {
                 value={formData.status}
                 onChange={(value) => handleChange("status", value)}
                 options={statusOptions}
+                error={errors.status}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="owner">Owner (Optional)</Label>
-              <Input
-                id="owner"
-                placeholder="john.doe@company.com"
-                value={formData.owner}
-                onChange={(e) => handleChange("owner", e.target.value)}
-              />
-            </div>
+            <FormInputField
+              label="Owner (Optional)"
+              name="owner"
+              placeholder="john.doe@company.com"
+              value={formData.owner}
+              onChange={(value) => handleChange("owner", value)}
+              required={false}
+              error={errors.owner}
+            />
 
             <FormTextareaField
               id="summary"
@@ -225,10 +163,15 @@ export default function Page({ params }: { params: { id: string } }) {
               rows={5}
               value={formData.summary}
               onChange={(value) => handleChange("summary", value)}
+              error={errors.summary}
             />
 
-            <Button type="submit" className="w-full">
-              Submit Incident
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Updating..." : "Update Incident"}
             </Button>
           </form>
         </CardContent>
