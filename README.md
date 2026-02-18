@@ -1,82 +1,54 @@
-# zeotap-demo
+# Incident Management Dashboard
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Hono, ORPC, and more.
+A simple, type-safe incident management dashboard built with Next.js, Hono, and oRPC.
 
-## Features
+## Setup & Run
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **Bun** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **SQLite/Turso** - Database engine
-- **Turborepo** - Optimized monorepo build system
-- **Biome** - Linting and formatting
+1. **Install dependencies:**
+   ```bash
+   bun install
+   ```
 
-## Getting Started
+2. **Database Setup:**
+   Ensure you have a local SQLite database (it will auto-create if needed via `.env` path).
+   ```bash
+   bun run db:push
+   ```
 
-First, install the dependencies:
+3. **Start Development:**
+   ```bash
+   bun run dev
+   ```
+   - Web: [http://localhost:3001](http://localhost:3001)
+   - API: [http://localhost:3000](http://localhost:3000)
 
-```bash
-bun install
-```
+## API Overview
 
-## Database Setup
+The backend uses **Hono** + **oRPC** for end-to-end type safety.
+- `GET /incidents`: Returns a paginated list of incidents with filtering (status, severity, search).
+- `GET /incident/:id`: Fetch a single incident.
+- `POST /incident`: Create a new incident (validated via Zod).
+- `PUT /incident/:id`: Update an existing incident.
+- `DELETE /incident/:id`: Delete an incident.
 
-This project uses SQLite with Drizzle ORM.
+## Design Decisions & Tradeoffs
 
-1. Start the local SQLite database (optional):
+- **Monorepo Structure**: Used Turborepo/Bun to keep the API schema and DB types shared between `apps/web` and `apps/server`. It makes typing trivial but adds complexity to the build folder structure.
+- **Mobile First**: Swapped the heavy table for a card-based view on small screens. Tables are a nightmare on mobile, so this was the most usable tradeoff.
+- **oRPC over REST**: Chose oRPC to get "Zod-to-Zod" type safety without needing an extra client generator like Swagger (though it still generates OpenAPI docs automatically).
+- **SQLite**: Used SQLite for simplicity in this demo. It's fast and file-based, avoiding the need for a Dockerized PG instance for a quick setup.
 
-```bash
-bun run db:local
-```
+## Future Improvements
 
-2. Update your `.env` file in the `apps/server` directory with the appropriate connection details if needed.
+- **Real-time updates**: Add WebSockets or Server-Sent Events (SSE) so the dashboard updates live as new incidents come in.
+- **Auth**: Currently, there's no login. Adding Clerk or NextAuth would be the first step for a real production tool.
+- **Charts**: A "Severity Trend" or "Time-to-Resolve" graph would add a lot of value to the home page.
+- **Advanced Search**: Implementation of full-text search (FTS) for the incident summaries.
 
-3. Apply the schema to your database:
+---
 
-```bash
-bun run db:push
-```
-
-Then, run the development server:
-
-```bash
-bun run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
-The API is running at [http://localhost:3000](http://localhost:3000).
-
-## Git Hooks and Formatting
-
-- Format and lint fix: `bun run check`
-
-## Project Structure
-
-```
-zeotap-demo/
-├── apps/
-│   ├── web/         # Frontend application (Next.js)
-│   └── server/      # Backend API (Hono, ORPC)
-├── packages/
-│   ├── api/         # API layer / business logic
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run dev:server`: Start only the server
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run database migrations
-- `bun run db:studio`: Open database studio UI
-- `bun run db:local`: Start the local SQLite database
-- `bun run check`: Run Biome formatting and linting
+### Can I host this on Vercel?
+**Yes, absolutely.** Since the frontend is a Next.js app, you can host it on Vercel. However, because this is a monorepo with a separate Hono server:
+1. You'd deploy the `apps/web` as a Vercel project.
+2. You can deploy the `apps/server` as **Vercel Functions** or to a platform like **Railway/Render/Fly.io**.
+3. If you want everything on Vercel, you'd need to move the Hono router into a Next.js API route (`/api/[...hono]`), which is very easy with `hono/nextjs`.
