@@ -39,7 +39,6 @@
   "dependencies": {
     "@zeotap-demo/env": "workspace:*",
     "dotenv": "catalog:",
-    "use-debounce": "^10.1.0",
     "zod": "catalog:"
   },
   "devDependencies": {

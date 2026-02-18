@@ -22,7 +22,7 @@ import {
 import { severityEnum, statusEnum } from "@zeotap-demo/db/enums";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Loader } from "lucide-react";
 
@@ -97,6 +97,7 @@ function FormSelectField({
 
 export default function Page() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const severityOptions = severityEnum.map((s: string, i: number) => ({
     value: s,
     label: `${s} - ${["Critical", "High", "Medium", "Low"][i]}`,
@@ -118,6 +119,13 @@ export default function Page() {
   const createMutation = useMutation(
     orpc.incident.createIncident.mutationOptions({
       onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: orpc.incident.getAllWithPaginationAndFilter.queryKey({
+            input: { page: 1, pageSize: 10 },
+          }),
+          exact: false,
+        });
+
         router.push("/");
         toast.success("Incident created successfully!");
       },
