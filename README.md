@@ -22,17 +22,23 @@ A simple, type-safe incident management dashboard built with Next.js, Hono, and 
    - Web: [http://localhost:3001](http://localhost:3001)
    - API: [http://localhost:3000](http://localhost:3000)
 
-## API Overview
+## API Overview & Testing
 
-The backend is an **oRPC** server. All procedures are prefixed with `/rpc`.
+The backend is an **oRPC** server. Because procedures take input, they require **POST** requests with a JSON body. 
+
+### 🟢 Best Way to Test (Interactive Docs)
+The easiest way to explore and call the API is through the built-in **Swagger/OpenAPI UI**:
+👉 **[http://localhost:3000/api-reference](http://localhost:3000/api-reference)**
+
+### RPC Procedures
+All calls are prefixed with `/rpc`:
 - `POST /rpc/incident/getAllWithPaginationAndFilter`: List incidents with filtering.
 - `POST /rpc/incident/getIncident`: Fetch a single incident.
 - `POST /rpc/incident/createIncident`: Create an incident.
 - `POST /rpc/incident/updateIncident`: Update an incident.
 - `POST /rpc/incident/deleteIncident`: Delete an incident.
 
-You can also view the interactive **Swagger/OpenAPI** docs at:
-`http://localhost:3000/api-reference`
+*Note: Accessing these paths directly in a browser via GET will return a "Method Not Supported" error.*
 
 ## Design Decisions & Tradeoffs
 
